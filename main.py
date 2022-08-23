@@ -5,8 +5,11 @@ from sys import exit
 from time import sleep
 from json import loads
 from requests import get
-from time import asctime
+from time import time as getTime
+from os import system
 import pygame
+
+VERSION = (1, 2, 2)
 
 print_list = [""]
 
@@ -21,7 +24,7 @@ class SendInfo:
             Chrome/104.0.5112.102 Safari/537.36 Edg/104.0.1293.63"""
         }
         self.ua_key = {
-            "User-Agent": "awa-{}".format(asctime())
+            "User-Agent": "awa-{}".format(getTime())
         }
 
     def get_nk(self, qq_number: int):
@@ -36,7 +39,7 @@ class SendInfo:
         nk_name = self.get_nk(qq_number)
         if nk_name != -1:
             self.ua_key = {
-                "User-Agent": "awa-{}".format(asctime())
+                "User-Agent": "awa-{}".format(getTime())
             }
             try:
                 res = get(self.sand_url, params={
@@ -48,6 +51,7 @@ class SendInfo:
                 if dic["code"] == "200":
                     return dic
                 else:
+                    print_list[0] = dic['msg']
                     return -1
             except Exception as e:
                 print_list[0] = "服务器连接失败 ({})".format(e)
@@ -71,9 +75,13 @@ class SendInfo:
             return -1
 
     def main(self, score: int):
-        qq = self.read()
-        if qq != -1:
-            return self.sand(qq, score)
+        global print_list
+        if system("check_file.exe") == 0:
+            qq = self.read()
+            if qq != -1:
+                return self.sand(qq, score)
+        else:
+            print_list[0] = "文件校验失败"
 
 
 class Tools:
@@ -82,7 +90,7 @@ class Tools:
         self.clock = pygame.time.Clock()
 
     def draw_text(self, surface: pygame.Surface, text: str, pos: tuple | list, size: int,
-                  color: tuple | list = (0, 0, 0), stop_time: float | str = 1.5):
+                  color: str | tuple | list = (0, 0, 0), stop_time: float | str = 1.5):
         f = pygame.font.Font(self.font_file, size)
         f_surface = f.render(text, True, color, (240, 240, 240))
         surface.blit(f_surface, pos)
@@ -113,11 +121,11 @@ class Ball(pygame.sprite.Sprite):
     def __init__(self, pos: tuple | list, group):
         super().__init__(group)
         self.r = 5
-        self.player_spacing = 10
+        self.player_spacing = self.r
 
-        self.image = pygame.Surface((10, 10)).convert()
+        self.image = pygame.Surface((self.r * 2, self.r * 2)).convert()
         self.image.fill((240, 240, 240, 0))
-        pygame.draw.circle(self.image, "red", (5, 5), self.r)
+        pygame.draw.circle(self.image, "red", (self.r, self.r), self.r)
         self.rect = self.image.get_rect(center=pos)
         self.pos = pygame.math.Vector2(self.rect.center)
         self.direction = pygame.math.Vector2()
@@ -158,7 +166,10 @@ class Ball(pygame.sprite.Sprite):
             player_pos[0] + player_size[0] // 2,
             player_pos[1] + player_size[1] // 2)
 
-        if player_rect[0] < self.pos[0] < player_rect[2] and player_rect[1] < self.pos[1] < player_rect[3]:
+        if any((player_rect[0] < (self.pos[0] - self.r) < player_rect[2],
+                player_rect[0] < (self.pos[0] + self.r) < player_rect[2])) and any((
+                player_rect[1] < self.pos[1] - self.r < player_rect[3], player_rect[1] < self.pos[1] + self.r <
+                                                                        player_rect[3])):
             self.on_player = True
         else:
             self.on_player = False
@@ -219,13 +230,14 @@ class Game:
     def __init__(self):
         pygame.init()
         # 数据段
+        self.keys = {"e": False}
         self.sleep_time = [0, 1]
 
-        self.fail = False
+        self.died = False
         self.balls = []
         self.resolution = (1280, 720)
         # self.background = pygame.image.load("./res/img/bg/bg.png")
-        self.bg_color = (240, 240, 240)
+        self.bg_color = (240, 240, 240, 255)
         self.title = "弹球游戏 - by 爱喝牛奶の涛哥"
 
         # 调用段
@@ -245,14 +257,37 @@ class Game:
 
         self.clock = pygame.time.Clock()
 
-    def create_ball(self, pos: tuple | list, group):
+    def create_ball(self, group):
+        px = 220
+
+        while True:
+            pos = (randint(0, self.screen.get_width()), randint(0, self.screen.get_height()))
+            # if (self.player.pos[0] - round((self.player.image.get_size()[0] // 2) * 1.5)) <= pos[0] <= \
+            #         (self.player.pos[0] + round((self.player.image.get_size()[0] // 2) * 1.5)) and \
+            #         (self.player.pos[1] - round((self.player.image.get_size()[1] // 2) * 1.5)) <= pos[1] <= \
+            #         (self.player.pos[1] + round((self.player.image.get_size()[1] // 2) * 1.5)):
+            #     pass
+            if self.player.pos[0] - px <= pos[0] <= self.player.pos[0] + px and self.player.pos[1] - px <= pos[1] <= \
+                    self.player.pos[1] + px:
+                pass
+            else:
+                break
+            for e in pygame.event.get():
+                if e.type == pygame.QUIT:
+                    pygame.quit()
+                    exit(0)
+                if e.type == pygame.KEYUP and e.key == pygame.K_ESCAPE:
+                    pygame.quit()
+                    exit(0)
+        self._create_ball(pos, group)
+
+    def _create_ball(self, pos: tuple | list, group):
         self.balls.append(Ball(pos, group))
 
     def create_ball_thread(self):
-        while not self.fail:
+        while not self.died:
             sleep(randint(*self.sleep_time) + random())
-            self.create_ball((randint(0, self.screen.get_width()), randint(0, self.screen.get_height())),
-                             self.ball_spr)
+            self.create_ball(self.ball_spr)
 
     def get_rank(self):
         ...
@@ -261,13 +296,16 @@ class Game:
         tools = Tools()
         if skip_head is not True:
             tools.draw_text(self.screen, "弹球游戏", (10, 30), 100, stop_time=0)
-            tools.draw_text(self.screen, "保证您不会被弹球碰到", (10, 150), 40, stop_time=0)
-            tools.draw_text(self.screen, "使用 WASD 或 ↑↓←→(上下左右) 进行移动 (您也可以按下\"E\"手动增加弹球数量)",
+            tools.draw_text(self.screen, "保证您不被弹球碰到", (10, 150), 40, stop_time=0)
+            tools.draw_text(self.screen, "使用 WASD 或 ↑↓←→(上下左右) 进行移动",
                             (10, 200), 35, stop_time=0)
+            tools.draw_text(self.screen, "注意：您可以按下\"E\"手动增加弹球数量",
+                            (10, 240), 35, color="red", stop_time=0)
             tools.draw_text(self.screen, "按下任意键以开始", (500, 650), 35, stop_time="wait_key")
 
         Thread(target=self.create_ball_thread, daemon=True).start()
-        while not self.fail:
+        sleep(0.1)
+        while not self.died:
             for e in pygame.event.get():
                 if e.type == pygame.QUIT:
                     pygame.quit()
@@ -275,13 +313,17 @@ class Game:
                 if e.type == pygame.KEYUP and e.key == pygame.K_ESCAPE:
                     pygame.quit()
                     exit(0)
-                if e.type == pygame.KEYUP and e.key == pygame.K_e:
-                    self.create_ball((randint(0, self.screen.get_width()), randint(0, self.screen.get_height())),
-                                     self.ball_spr)
+                if e.type == pygame.KEYDOWN and e.key == pygame.K_e:
+                    self.keys["e"] = True
+                elif e.type == pygame.KEYUP and e.key == pygame.K_e:
+                    self.keys["e"] = False
 
             for obj in self.balls:
                 if obj.on_player:
-                    self.fail = True
+                    self.died = True
+
+            if self.keys["e"]:
+                self.create_ball(self.ball_spr)
 
             dt = self.clock.tick(60) / 1000
             self.display.fill(self.bg_color)
@@ -326,4 +368,4 @@ if __name__ == "__main__":
         run = game.mainloop(run)
 
 # test = SandInfo()
-# print(test.main(51))
+# print(test.main(51))dddd
