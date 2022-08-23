@@ -241,7 +241,7 @@ class Game:
 
         self.player = Player((620, 340), self.all_spr)
 
-        self.req = SandInfo()
+        self.req = SendInfo()
 
         self.clock = pygame.time.Clock()
 
