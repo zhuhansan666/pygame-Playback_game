@@ -11,7 +11,7 @@ import pygame
 print_list = [""]
 
 
-class SandInfo:
+class SendInfo:
     def __init__(self):
         self.get_nk_name_url = """https://api.lixingyong.com/api/qq?id={}"""
         self.sand_url = """http://milk.onlyacat233.top:8081/post"""
