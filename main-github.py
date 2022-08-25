@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-VERSION = (1, 6, 0)
+VERSION = (1, 6, 3)
 
 from threading import Thread
 from random import randint, random
@@ -10,7 +10,7 @@ from json import loads
 from requests import get
 from time import time as getTime
 from os.path import exists
-from subprocess import run
+from subprocess import run as run_cmd
 import pygame
 
 print_list = ["", ""]
@@ -239,6 +239,7 @@ class Game:
         self.keys = {"e": False}
         self.sleep_time = [0, 1]
 
+        self.px = 300
         self.developer = False
         self.died = False
         self.input_qq = False
@@ -268,7 +269,7 @@ class Game:
         self.clock = pygame.time.Clock()
 
     def create_ball(self, group):
-        px = 220
+        px = self.px
 
         while True:
             pos = (randint(0, self.screen.get_width()), randint(0, self.screen.get_height()))
@@ -314,7 +315,7 @@ class Game:
 
         self.tools.draw_text(self.screen, "发现新版本 V{}\n{}".format(ver_str, url), (500, 300), 35, stop_time=wait_time)
         if "https://" in url.lower() or "http://" in url.lower():
-            run("explorer {}".format(url), shell=True)
+            run_cmd("explorer {}".format(url), shell=True)
 
     def input_qq_ui(self):
         global qq, online, nk_name
@@ -413,6 +414,7 @@ class Game:
             update_url = res[0]
             latest_version = res[1]
             self.update_ui(latest_version, update_url)
+
 
         if skip_head is not True:
             self.input_qq_ui()
