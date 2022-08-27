@@ -138,7 +138,7 @@ class TextBox(pygame.sprite.Sprite):
             self.abs_size[1] = self.surface_size[1]
 
         self.image = pygame.Surface(self.abs_size).convert_alpha()
-        self.image.fill((0, 0, 0, 100))
+        self.image.fill((0, 0, 0, 0))
 
         self.rect = self.image.get_rect(**{self.alignment_type: self.pos})
 
@@ -346,7 +346,7 @@ class InputBox(pygame.sprite.Sprite):
             else:
                 width, height = self.rect.width, self.rect.height
 
-            self.image.blit(font_surface, (5, 5))
+            self.image.blit(font_surface, (10, 5))
 
         self.image.blit(txt_surface, (5, 5))
         pygame.draw.rect(self.image, self.color, (0, 0, self.rect.w, height), 2)
