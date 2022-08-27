@@ -1,6 +1,6 @@
-from __future__ import annotations
+﻿from typing import Union
 
-VERSION = (1, 6, 3)
+VERSION = (1, 6, 8)
 
 from threading import Thread
 from random import randint, random
@@ -8,10 +8,12 @@ from sys import exit
 from time import sleep
 from json import loads
 from requests import get
-from time import time as getTime
+from time import time as get_time
 from os.path import exists
 from subprocess import run as run_cmd
 import pygame
+
+from controls import InputBox, Tools
 
 print_list = ["", ""]
 qq = 0
@@ -22,114 +24,21 @@ nk_name = ""
 class ReqsThread(Thread):
     def __init__(self, func, d: bool = True):
         super(ReqsThread, self).__init__(daemon=d)
-        self.res: dict | int = 0
+        self.res: Union[dict, int] = 0
         self.func = func
 
     def run(self):
         self.res = self.func()
 
 
-class Tools:
-    def __init__(self):
-        self.font_file = './res/font/MiSans-Light.ttf'
-        self.clock = pygame.time.Clock()
-
-    def draw_text(self, surface: pygame.Surface, text: str, pos: tuple | list, size: int,
-                  color: str | tuple | list = (0, 0, 0), stop_time: float | str = 1.5):
-        pos = list(pos)
-        f = pygame.font.Font(self.font_file, size)
-        text_list = text.split("\n")
-        for i in range(len(text_list)):
-            if type(text_list[i]) == str:
-                f_surface = f.render(text_list[i], True, color, (240, 240, 240))
-                if surface.get_width() - (f_surface.get_width() + pos[0]) <= 0:
-                    if f_surface.get_width() > surface.get_width():
-                        pos[0] = 10
-                    else:
-                        pos[0] = surface.get_width() - f_surface.get_width() - 10
-                pos[1] = pos[1] + i * f_surface.get_height()
-                surface.blit(f_surface, pos)
-
-        if type(stop_time) == float or type(stop_time) == int:
-            for i in range(round(stop_time * 100)):
-                for e in pygame.event.get():
-                    if e.type == pygame.QUIT:
-                        pygame.quit()
-                        exit(0)
-                pygame.event.get()
-                pygame.display.update()
-                sleep(0.01)
-        else:
-            if stop_time == "wait_key":
-                while True:
-                    for e in pygame.event.get():
-                        if e.type == pygame.QUIT:
-                            pygame.quit()
-                            exit(0)
-                        if e.type == pygame.KEYUP:
-                            return
-                    pygame.event.get()
-                    pygame.display.update()
-                    sleep(0.01)
-
-
-class InputBox:
-    def __init__(self, rect: pygame.Rect, font_size: int, def_text: str = "") -> None:
-        """
-        rect，传入矩形实体，传达输入框的位置和大小
-        """
-        self.boxBody: pygame.Rect = rect
-        self.color_inactive = pygame.Color((100, 100, 100))  # 未被选中的颜色
-        self.color_active = pygame.Color('black')  # 被选中的颜色
-        self.color = self.color_inactive  # 当前颜色，初始为未激活颜色
-        self.active = False
-        self.text = ''
-        self.done = False
-        self.font_file = './res/font/MiSans-Light.ttf'
-        self.font = pygame.font.Font(self.font_file, font_size)
-        self.def_text = def_text
-
-    def dealEvent(self, event: pygame.event.Event):
-        if event.type == pygame.MOUSEBUTTONDOWN:
-            if self.boxBody.collidepoint(event.pos):  # 若按下鼠标且位置在文本框
-                self.active = not self.active
-            else:
-                self.active = False
-            self.color = self.color_active if (
-                self.active) else self.color_inactive
-        if event.type == pygame.KEYDOWN:  # 键盘输入响应
-            if self.active:
-                if event.key == pygame.K_RETURN:
-                    self.done = True
-                    self.active = False
-                    self.color = self.color_inactive
-                elif event.key == pygame.K_BACKSPACE:
-                    self.text = self.text[:-1]
-                else:
-                    self.text += event.unicode
-
-    def draw(self, screen: pygame.surface.Surface):
-        txtSurface = self.font.render(
-            self.text, True, self.color)  # 文字转换为图片
-        width = max(200, txtSurface.get_width() + 10)  # 当文字过长时，延长文本框
-        self.boxBody.w = width
-        if len(self.text) <= 0:
-            font_surface = self.font.render(
-                self.def_text, True, self.color_inactive)
-            width = max(200, font_surface.get_width() + 10)
-            self.boxBody.w = width
-            screen.blit(font_surface, (self.boxBody.x + 5, self.boxBody.y + 5))
-        screen.blit(txtSurface, (self.boxBody.x + 5, self.boxBody.y + 5))
-        pygame.draw.rect(screen, self.color, self.boxBody, 2)
-
 
 class Ball(pygame.sprite.Sprite):
-    def __init__(self, pos: tuple | list, group):
+    def __init__(self, pos: Union[tuple, list], group):
         super().__init__(group)
         self.r = 5
         self.player_spacing = self.r
 
-        self.image = pygame.Surface((self.r * 2, self.r * 2)).convert()
+        self.image = pygame.Surface((self.r * 2, self.r * 2)).convert_alpha()
         self.image.fill((240, 240, 240, 0))
         pygame.draw.circle(self.image, "red", (self.r, self.r), self.r)
         self.rect = self.image.get_rect(center=pos)
@@ -148,7 +57,7 @@ class Ball(pygame.sprite.Sprite):
 
         self.rect.center = self.pos
 
-    def goto_player(self, player_pos: tuple | list, player_size: tuple | list):
+    def goto_player(self, player_pos: Union[tuple, list], player_size: Union[tuple, list]):
         if self.pos[0] - player_pos[0] > (player_size[0] // 2 - self.player_spacing):
             self.direction.x -= 1
         elif self.pos[0] - player_pos[0] < -(player_size[0] // 2 - self.player_spacing):
@@ -166,7 +75,7 @@ class Ball(pygame.sprite.Sprite):
     def update_rect(self):
         self.abs_rect = (*self.pos, self.pos[0] + self.image.get_width(), self.pos[1] + self.image.get_height())
 
-    def check_is_on_player(self, player_pos: tuple | list, player_size: tuple | list):
+    def check_is_on_player(self, player_pos: Union[tuple, list], player_size: Union[tuple, list]):
         player_rect = (
             player_pos[0] - player_size[0] // 2, player_pos[1] - player_size[1] // 2,
             player_pos[0] + player_size[0] // 2,
@@ -180,7 +89,7 @@ class Ball(pygame.sprite.Sprite):
         else:
             self.on_player = False
 
-    def update(self, dt, player_pos: tuple | list, player_size: tuple | list):
+    def update(self, dt, player_pos: Union[tuple, list], player_size: Union[tuple, list]):
         self.goto_player(player_pos, player_size)
         self.move(dt)
         self.update_rect()
@@ -188,11 +97,11 @@ class Ball(pygame.sprite.Sprite):
 
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, pos: tuple | list, group):
+    def __init__(self, pos: Union[tuple, list], group: pygame.sprite.Group):
         super().__init__(group)
         # 创建段
-        # self.image= pygame.image.load()
-        self.image = pygame.Surface((20, 40)).convert()
+        # self.image = pygame.image.load()
+        self.image = pygame.Surface((20, 40)).convert_alpha()
         self.rect = self.image.get_rect(center=pos)
         self.pos = pygame.math.Vector2(self.rect.center)
         self.direction = pygame.math.Vector2()
@@ -201,7 +110,7 @@ class Player(pygame.sprite.Sprite):
         # 修改段
         self.image.fill((0, 0, 0))
 
-    def event(self, screen_size: tuple | list):
+    def event(self, screen_size: Union[tuple, list]):
         keys = pygame.key.get_pressed()
 
         if (keys[pygame.K_w] or keys[pygame.K_UP]) and self.pos.y > 0:
@@ -218,18 +127,40 @@ class Player(pygame.sprite.Sprite):
         else:
             self.direction.x = 0
 
-    def move(self, dt):
+    def move(self, dt, screen_size: Union[tuple, list]):
         if self.direction.magnitude():
             self.direction = self.direction.normalize()
 
         self.pos.x = self.pos.x + self.direction.x * self.speed * dt
         self.pos.y = self.pos.y + self.direction.y * self.speed * dt
 
+        if self.pos.x < 0:
+            self.pos.x = 0
+        elif self.pos.x > screen_size[0]:
+            self.pos.x = screen_size[0]
+
+        if self.pos.y < 0:
+            self.pos.y = 0
+        elif self.pos.y > screen_size[1]:
+            self.pos.y = screen_size[1]
+
         self.rect.center = self.pos
 
-    def update(self, dt, screen_size: tuple | list):
+    def update(self, dt, screen_size: Union[tuple, list]):
         self.event(screen_size)
-        self.move(dt)
+        self.move(dt, screen_size)
+
+
+class Mouse(pygame.sprite.Sprite):
+    def __init__(self, group):
+        super().__init__(group)
+        self.image = pygame.Surface((1, 1)).convert_alpha()
+        self.image.fill((0, 0, 0, 0))
+        self.rect = self.image.get_rect()
+        self.rect.center = pygame.mouse.get_pos()
+
+    def update(self, dt, screen_size):
+        self.rect.center = pygame.mouse.get_pos()
 
 
 class Game:
@@ -254,15 +185,17 @@ class Game:
         # 调用段
         self.screen = pygame.display.set_mode(self.resolution)
         self.screen.fill(self.bg_color)
-        self.display = self.screen.convert()
+        self.display = self.screen.convert_alpha()
         pygame.display.flip()
         pygame.display.set_caption(self.title, self.title)
         pygame.display.set_icon(pygame.image.load("./res/img/icon/icon.jpg"))
 
         self.all_spr = pygame.sprite.Group()
         self.ball_spr = pygame.sprite.Group()
+        self.input_boxs = pygame.sprite.Group()
 
         self.player = Player((620, 340), self.all_spr)
+        self.mouse = Mouse(self.all_spr)
 
         self.req = Reqs()
 
@@ -292,13 +225,14 @@ class Game:
                     exit(0)
         self._create_ball(pos, group)
 
-    def _create_ball(self, pos: tuple | list, group):
+    def _create_ball(self, pos: Union[tuple, list], group):
         self.balls.append(Ball(pos, group))
 
     def create_ball_thread(self):
         while not self.died:
             sleep(randint(*self.sleep_time) + random())
-            self.create_ball(self.ball_spr)
+            if not self.died:
+                self.create_ball(self.ball_spr)
 
     @staticmethod
     def __write_qq():
@@ -313,7 +247,8 @@ class Game:
             ver_str += f"{item}."
         ver_str = ver_str[:-1]
 
-        self.tools.draw_text(self.screen, "发现新版本 V{}\n{}".format(ver_str, url), (500, 300), 35, stop_time=wait_time)
+        self.tools.draw_text(self.screen, "发现新版本 V{}\n{}".format(ver_str, url), (500, 300), 35,
+                             stop_time=wait_time)
         if "https://" in url.lower() or "http://" in url.lower():
             run_cmd("explorer {}".format(url), shell=True)
 
@@ -340,9 +275,10 @@ class Game:
                     pass
 
             self.input_qq = True
-            input_box = InputBox(pygame.Rect(500, 300, 0, 55), 32, "请输入QQ号")
+            input_box = InputBox(self.input_boxs, pygame.Rect(100, 300, self.screen.get_width() - 120, 55), 35,
+                                 def_text="请输入QQ号", input_type=1)
             input_box.active = True
-            input_box.color = input_box.color_active
+
             while self.input_qq:
                 self.screen.fill(self.bg_color)
                 for event in pygame.event.get():
@@ -352,7 +288,7 @@ class Game:
                     if event.type == pygame.KEYUP and (event.key == pygame.K_ESCAPE or event.key == pygame.K_q):
                         self.input_qq = False
                     if self.input_qq:
-                        input_box.dealEvent(event)
+                        input_box.event(event)
                 if input_box.active is False and input_box.done is True:
                     try:
                         qq = int(input_box.text)
@@ -366,13 +302,15 @@ class Game:
                             self.input_qq = False
                             return
                         else:
-                            self.tools.draw_text(self.screen, "您的QQ号输入有误！无法成功获取昵称！", (300, 650), 35, stop_time=0)
+                            self.tools.draw_text(self.screen, "您的QQ号输入有误！无法成功获取昵称！", (300, 650), 35,
+                                                 stop_time=0)
                     except Exception as e:
                         self.tools.draw_text(self.screen, "请输入正确的QQ号！", (470, 650), 35, stop_time=0)
-                self.tools.draw_text(self.screen, "登陆", (410, 300), 40, stop_time=0)
+                self.tools.draw_text(self.screen, "登陆", (10, 300), 40, stop_time=0)
                 self.clock.tick(60)
                 if self.input_qq:
-                    input_box.draw(self.screen)
+                    self.input_boxs.update(False)
+                    self.input_boxs.draw(self.screen)
                     pygame.display.update()
         else:
             self.input_qq = True
@@ -397,6 +335,8 @@ class Game:
                 pygame.display.update()
                 self.input_qq = False
 
+        self.input_boxs = pygame.sprite.Group()
+
     def bulletin_ui(self):
         self.screen.fill(self.bg_color)
 
@@ -408,13 +348,12 @@ class Game:
                 self.tools.draw_text(self.screen, "公告", (530, 10), 50, stop_time=0)
                 self.tools.draw_text(self.screen, bulletin_info, (10, 100), 30, stop_time=3)
 
-    def header(self, skip_head: bool):
+    def header_ui(self, skip_head: bool):
         res = self.req.update()
         if res is not None:
             update_url = res[0]
             latest_version = res[1]
             self.update_ui(latest_version, update_url)
-
 
         if skip_head is not True:
             self.input_qq_ui()
@@ -431,7 +370,8 @@ class Game:
                     self.tools.draw_text(self.screen, "离线模式",
                                          (1300, 5), 25, color="red", stop_time=0)
                     self.tools.draw_text(self.screen, "您没有登陆！", (300, 500), 50, color="red", stop_time=0)
-                    self.tools.draw_text(self.screen, "登陆即可成绩云同步并保存最高成绩!", (300, 570), 50, color="green",
+                    self.tools.draw_text(self.screen, "登陆即可成绩云同步并保存最高成绩!", (300, 570), 50,
+                                         color="green",
                                          stop_time=0)
                 else:
                     self.tools.draw_text(self.screen, nk_name,
@@ -459,7 +399,7 @@ class Game:
                 self.clock.tick(60)
                 pygame.display.update()
 
-    def ender(self):
+    def ender_ui(self):
         global print_list
 
         if online:
@@ -512,23 +452,43 @@ class Game:
                     pass
             else:
                 self.tools.draw_text(self.screen, "您没有登陆！", (150, 310), 50, color="red", stop_time=0)
-                self.tools.draw_text(self.screen, "登陆即可成绩云同步并保存最高成绩 (按\"Q\"登陆)", (150, 370), 50, color="green",
+                self.tools.draw_text(self.screen, "登陆即可成绩云同步并保存最高成绩 (按\"Q\"登陆)", (150, 370), 50,
+                                     color="green",
                                      stop_time=0)
             if print_list[0] != "":
                 self.tools.draw_text(self.screen, "成绩上传&获取失败", (150, 310), 50, stop_time=0)
                 self.tools.draw_text(self.screen, print_list[0], (150, 400), 40, stop_time=0)
 
-            self.tools.draw_text(self.screen, "您失败了！3秒后按下任意键继续...(按\"ESC\"退出)", (150, 250), 50, stop_time=0)
+                print_list[0] = ""
+
+            self.tools.draw_text(self.screen, "最终得分：{}".format(len(self.balls)), (150, 190), 50, color="blue",
+                                 stop_time=0)
+            self.tools.draw_text(self.screen, "您失败了！3秒后按下任意键继续...(按\"ESC\"退出)", (150, 250), 50,
+                                 stop_time=0)
 
             pygame.display.update()
 
             dt = self.clock.tick(60) / 1000
 
-    print_list[0] = ""
+    def online_ui(self):
+        global online
 
-    def mainloop(self, skip_head: bool = False):
+        running = True
 
-        self.header(skip_head)
+        if online is True:
+
+            while running:
+                for e in pygame.event.get():
+                    if e.type == pygame.QUIT:
+                        pygame.quit()
+                        exit(0)
+                    if e.type == pygame.KEYUP and e.key == pygame.K_ESCAPE:
+                        pygame.quit()
+                        exit(0)
+
+    def main_ui(self, skip_head: bool = False):
+
+        self.header_ui(skip_head)
 
         Thread(target=self.create_ball_thread, daemon=True).start()
         sleep(0.1)
@@ -579,12 +539,12 @@ class Game:
             self.screen.blit(self.display, (0, 0))
             pygame.display.update()
 
-        return self.ender()
+        return self.ender_ui()
 
 
 if __name__ == "__main__":
     game = Game()
-    run = game.mainloop()
+    run = game.main_ui()
     while run:
         game = Game()
-        run = game.mainloop(run)
+        run = game.main_ui(run)
