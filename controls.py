@@ -4,56 +4,7 @@ from types import FunctionType
 import pygame
 from math import ceil
 from time import sleep, time
-
-
-# class InputBox:
-#     def __init__(self, rect: pygame.Rect, font_size: int, def_text: str = "") -> None:
-#         """
-#         rect，传入矩形实体，传达输入框的位置和大小
-#         """
-#         self.boxBody: pygame.Rect = rect
-#         self.color_inactive = pygame.Color((100, 100, 100))  # 未被选中的颜色
-#         self.color_active = pygame.Color('black')  # 被选中的颜色
-#         self.color = self.color_inactive  # 当前颜色，初始为未激活颜色
-#         self.active = False
-#         self.text = ''
-#         self.done = False
-#         self.font_file = './res/font/MiSans-Light.ttf'
-#         self.font = pygame.font.Font(self.font_file, font_size)
-#         self.def_text = def_text
-#
-#     def dealEvent(self, event: pygame.event.Event):
-#         if event.type == pygame.MOUSEBUTTONDOWN:
-#             if self.boxBody.collidepoint(event.pos):  # 若按下鼠标且位置在文本框
-#                 self.active = not self.active
-#             else:
-#                 self.active = False
-#             self.color = self.color_active if (
-#                 self.active) else self.color_inactive
-#         if event.type == pygame.KEYDOWN:  # 键盘输入响应
-#             if self.active:
-#                 if event.key == pygame.K_RETURN:
-#                     self.done = True
-#                     self.active = False
-#                     self.color = self.color_inactive
-#                 elif event.key == pygame.K_BACKSPACE:
-#                     self.text = self.text[:-1]
-#                 else:
-#                     self.text += event.unicode
-#
-#     def draw(self, screen: pygame.surface.Surface):
-#         txtSurface = self.font.render(
-#             self.text, True, self.color)  # 文字转换为图片
-#         width = max(200, txtSurface.get_width() + 10)  # 当文字过长时，延长文本框
-#         self.boxBody.w = width
-#         if len(self.text) <= 0:
-#             font_surface = self.font.render(
-#                 self.def_text, True, self.color_inactive)
-#             width = max(200, font_surface.get_width() + 10)
-#             self.boxBody.w = width
-#             screen.blit(font_surface, (self.boxBody.x + 5, self.boxBody.y + 5))
-#         screen.blit(txtSurface, (self.boxBody.x + 5, self.boxBody.y + 5))
-#         pygame.draw.rect(screen, self.color, self.boxBody, 2)
+from sys import exit
 
 
 class Tools:
@@ -105,7 +56,7 @@ class TextBox(pygame.sprite.Sprite):
     def __init__(self, group: pygame.sprite.Group, screen_size: Union[tuple, list, pygame.math.Vector2],
                  pos: Union[tuple, list, pygame.math.Vector2], text: str, size: int, alignment_type: str = "topleft",
                  functions: Union[FunctionType or None, FunctionType or None, FunctionType or None] = (
-                 None, None, None),
+                         None, None, None),
                  surface_size: Union[tuple, list, pygame.math.Vector2] = (None, None),
                  color: Union[tuple, list, str] = (0, 0, 0), bg_color: Union[tuple, list, str] = None):
         super().__init__(group)
@@ -186,7 +137,8 @@ class TextBox(pygame.sprite.Sprite):
 class InputBox(pygame.sprite.Sprite):
     def __init__(self, group: pygame.sprite.Group, rect: pygame.Rect, font_size: int, color=(100, 100, 100, 127),
                  active_color='black', def_text: str = "", cursor_hied_time: float = 0.5,
-                 cursor_show_time: float = 0.5, press_time: float = 0.5, once_press_time: float = 0.03, input_type: int=1):
+                 cursor_show_time: float = 0.5, press_time: float = 0.5, once_press_time: float = 0.03,
+                 input_type: int = 1, paste: FunctionType = None):
         """
         输入框
         :param group: pygame group
@@ -207,9 +159,10 @@ class InputBox(pygame.sprite.Sprite):
         self.color_inactive = color  # 未被选中的颜色
         self.color_active = active_color  # 被选中的颜色
         self.color = self.color_inactive  # 当前颜色，初始为未激活颜色
+        self.paste = paste  # 粘贴内容Func
 
         self.active = False
-        self.text = ""
+        self.__text = ""
         self.done = False
 
         self.font_file = './res/font/MiSans-Light.ttf'
@@ -224,7 +177,7 @@ class InputBox(pygame.sprite.Sprite):
         self.input_type = input_type
 
         self.keys = {
-            pygame.K_BACKSPACE: False
+            pygame.K_BACKSPACE: False,
         }
         self.keys_time = {
             pygame.K_BACKSPACE: time()
@@ -244,6 +197,40 @@ class InputBox(pygame.sprite.Sprite):
             return True
         except Exception as e:
             return False
+
+    @property
+    def text(self):
+        return self.__text
+
+    @text.setter
+    def text(self, value):
+        self.__set_text(value, mode=2)
+
+    def __set_text(self, value, mode=1):
+        """
+
+        :param value: value
+        :param mode: int, 1 -> add; 2 -> set
+        :return:
+        """
+        if mode == 1:
+            if self.input_type == 1:
+                if self.__is_float(value):
+                    self.__text += value
+            elif self.input_type == 2:
+                if value.isalnum():
+                    self.__text += value
+            elif self.input_type == 3:
+                self.__text += value
+        elif mode == 2:
+            if self.input_type == 1:
+                if self.__is_float(value):
+                    self.__text = value
+            elif self.input_type == 2:
+                if value.isalnum():
+                    self.__text = value
+            elif self.input_type == 3:
+                self.__text = value
 
     def cursor(self):
         if self.active:
@@ -279,6 +266,10 @@ class InputBox(pygame.sprite.Sprite):
         self.image.fill((0, 0, 0, 0))
 
     def event(self, event: pygame.event.Event):
+        if event.type == pygame.KEYUP:
+            if event.key == pygame.K_BACKSPACE:
+                self.keys[pygame.K_BACKSPACE] = False
+
         if event.type == pygame.MOUSEBUTTONDOWN:
             if self.rect.collidepoint(event.pos):  # 若按下鼠标且位置在文本框
                 self.done = False
@@ -298,29 +289,24 @@ class InputBox(pygame.sprite.Sprite):
                     if event.key == pygame.K_BACKSPACE:
                         self.keys_time[pygame.K_BACKSPACE] = time()
                         self.keys[pygame.K_BACKSPACE] = True
-                        self.text = self.text[:-1]
+                        self.__text = self.__text[:-1]
                     else:
-                        if self.input_type == 1:
-                            if self.__is_float(event.unicode):
-                                self.text += event.unicode
-                        elif self.input_type == 2:
-                            if event.unicode.isalnum():
-                                self.text += event.unicode
-                        elif self.input_type == 3:
-                            self.text += event.unicode
-
-        if event.type == pygame.KEYUP:
-            if event.key == pygame.K_BACKSPACE:
-                self.keys[pygame.K_BACKSPACE] = False
+                        if event.unicode == "":  # ctrl + V
+                            if self.paste is not None and self.active:
+                                self.active = False
+                                self.__set_text(self.paste())
+                                self.active = True
+                        else:
+                            self.__set_text(event.unicode)
 
     def press(self):
-        if self.keys[pygame.K_BACKSPACE] is True and time() - self.keys_time[pygame.K_BACKSPACE] > self.press_time\
+        if self.keys[pygame.K_BACKSPACE] is True and time() - self.keys_time[pygame.K_BACKSPACE] > self.press_time \
                 and time() - self.press_last_times[pygame.K_BACKSPACE] >= self.once_press_time:
             self.press_last_times[pygame.K_BACKSPACE] = time()
-            self.text = self.text[:-1]
+            self.__text = self.__text[:-1]
 
     def change_surface(self):
-        txt_surface = self.font.render(self.text + self.cursor_str, True, self.color)
+        txt_surface = self.font.render(self.__text + self.cursor_str, True, self.color)
         width = max(self.rect.w, txt_surface.get_width() + 10)
         height = max(self.rect.h, txt_surface.get_height() + 10)
         self.rect.width, self.rect.height = width, height
@@ -335,7 +321,7 @@ class InputBox(pygame.sprite.Sprite):
         self.image = pygame.Surface((width, height + 10)).convert_alpha()
         self.image.fill((0, 0, 0, 0))
 
-        if len(self.text) <= 0:
+        if len(self.__text) <= 0:
             font_surface = self.font.render(
                 self.def_text, True, self.color_inactive)
 
@@ -350,8 +336,6 @@ class InputBox(pygame.sprite.Sprite):
 
         self.image.blit(txt_surface, (5, 5))
         pygame.draw.rect(self.image, self.color, (0, 0, self.rect.w, height), 2)
-
-        pygame.image.save(self.image, "./test.png")
 
     def change_color(self):
         self.color = self.color_active if (
