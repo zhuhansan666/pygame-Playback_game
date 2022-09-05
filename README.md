@@ -10,4 +10,4 @@
 * pyperclip
 * requests
 * wget
-* 自行创建pychrame虚拟环境(在.\venv\)
+* 自行创建Pycharm虚拟环境(在.\venv\)
