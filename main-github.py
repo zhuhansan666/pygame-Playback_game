@@ -1,6 +1,6 @@
 ﻿from typing import Union
 
-VERSION = (1, 7, 3)
+VERSION = (1, 7, 4)
 NETWORK = False
 
 from threading import Thread
@@ -14,6 +14,7 @@ from os.path import exists, abspath
 from subprocess import run as run_cmd
 from controls import *
 from wget import download as wget_download
+from platform import platform as get_system_name
 
 import pygame
 
@@ -409,7 +410,7 @@ class Game:
 
             if len(bulletin_info) > 0:
                 self.tools.draw_text(self.screen, "公告", (530, 10), 50, stop_time=0)
-                self.tools.draw_text(self.screen, bulletin_info, (10, 100), 30, stop_time=3)
+                self.tools.draw_text(self.screen, bulletin_info.replace("<br>", "\n"), (10, 100), 30, stop_time=3)
 
     def header_ui(self, skip_head: bool):
         if NETWORK:
