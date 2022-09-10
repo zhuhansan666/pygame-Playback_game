@@ -11,4 +11,4 @@
 * pyperclip
 * requests
 * wget
-* 自行创建Pycharm虚拟环境(在.\venv\) (Win10+) / 安装库 (Win7)
+* 自行创建Pycharm虚拟环境(在.\venv\) (Win10+) / 全局python安装库 (Win7)
