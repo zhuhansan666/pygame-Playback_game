@@ -6,9 +6,11 @@ from threading import Thread
 from time import time as get_time
 
 import pygame
-from wget import download as wget_download
+# from wget import download as wget_download
 
 # my pkg
+from download_by_requests import RequestsDownload
+
 from ball import Ball
 
 from controls import *
@@ -52,6 +54,11 @@ class Mouse(pygame.sprite.Sprite):
 
 class Game:
     def __init__(self):
+        self.player = None
+        self.mouse = None
+        self.black_sur = None
+        self.display = None
+        self.screen = None
         pygame.init()
         # 数据段
         self.keys = {"e": False}
@@ -66,6 +73,7 @@ class Game:
         self.in_head = False
         self.bulletin = False
         self.update = False
+        self.will_update = False
         self.tools = Tools()
         self.balls = []
         self.resolution = (1280, 720)
@@ -73,21 +81,10 @@ class Game:
         self.bg_color = (240, 240, 240, 255)
         self.title = "弹球游戏 - by 爱喝牛奶の涛哥"
 
-        # 调用段
-        self.screen = pygame.display.set_mode(self.resolution)
-        self.screen.fill(self.bg_color)
-        self.display = self.screen.convert_alpha()
-        pygame.display.flip()
-        pygame.display.set_caption(self.title, self.title)
-        pygame.display.set_icon(pygame.image.load("./res/img/icon/icon.jpg"))
-
         self.all_spr = pygame.sprite.Group()
         self.ball_spr = pygame.sprite.Group()
         self.input_boxs = pygame.sprite.Group()
         self.text_boxs = pygame.sprite.Group()
-
-        self.player = Player((620, 340), self.all_spr)
-        self.mouse = Mouse(self.all_spr)
 
         if NETWORK:
             self.req = Reqs()
@@ -97,7 +94,19 @@ class Game:
 
         self.clock = pygame.time.Clock()
 
-        self.black_sur = pygame.Surface(self.display.get_size()).convert_alpha()
+    def init(self):
+        # 调用段
+        self.screen = pygame.display.set_mode(self.resolution)
+        self.screen.fill(self.bg_color)
+        self.display = self.screen.convert_alpha()
+        pygame.display.flip()
+        pygame.display.set_caption(self.title, self.title)
+        pygame.display.set_icon(pygame.image.load("./res/img/icon/icon.jpg"))
+
+        self.player = Player((620, 340), self.all_spr)
+        self.mouse = Mouse(self.all_spr)
+
+        self.black_sur = pygame.Surface(self.resolution).convert_alpha()
         self.black_sur.fill((0, 0, 0, 130))
 
     def create_ball(self, group):
@@ -163,43 +172,58 @@ class Game:
         self.tools.draw_text(self.screen, "发现新版本 V{}".format(ver_str), (500, 300), 35, stop_time=0)
         self.tools.draw_text(self.screen, f"正在下载: {url}", (10, 340), 35, stop_time=0)
         if "https://" in url.lower() or "http://" in url.lower():
-            logging.write_log(f"更新版本: V{ver_str} ({url})")
-            res = ReqsThread(lambda: wget_download(url))
-            res.start()
+            self.input_qq = False
 
-            i = 1
-            low_time = get_time()
-            while res.res == 0:
+            logging.write_log(f"更新版本: V{ver_str} ({url})")
+            # res = ReqsThread(lambda: wget_download(url))
+            # res.start()
+            res = RequestsDownload(url, "./")
+            res_thread = res.main()
+            res_code = res_thread.res
+
+            while res_code <= 0:
+                res_code = res_thread.res
                 self.screen.fill(self.bg_color)
 
-                self.tools.draw_text(self.screen, "发现新版本 V{}".format(ver_str), (500, 300), 35, stop_time=0)
-                if i == 1:
-                    self.tools.draw_text(self.screen, f"正在下载: {url}.", (10, 340), 35, stop_time=0)
-                elif i == 2:
-                    self.tools.draw_text(self.screen, f"正在下载: {url}..", (10, 340), 35, stop_time=0)
-                elif i == 3:
-                    self.tools.draw_text(self.screen, f"正在下载: {url}...", (10, 340), 35, stop_time=0)
+                if res_code == 0:
+                    self.tools.draw_text(self.screen, "发现新版本 V{}".format(ver_str), (500, 300), 35, stop_time=0)
+                    self.tools.draw_text(self.screen, "已下载: {}".format(round(res.download_size_mib, 2)),
+                                         (10, 400), 40, stop_time=0)
+                    self.tools.draw_text(self.screen, "MB(MIB) {}%".format(round(res.finished, 2)), (300, 400), 40,
+                                         stop_time=0)
+                    self.tools.draw_text(self.screen, "共 {} MB(MIB)".format(round(res.total_size_mib, 2)
+                                                                        if res.total_size_mib is not None else None),
+                                         (1300, 400), 40, stop_time=0)
                 else:
-                    self.tools.draw_text(self.screen, f"正在下载: {url}", (10, 340), 35, stop_time=0)
-                    i = 0
+                    self.tools.draw_text(self.screen, "发现新版本 V{}".format(ver_str), (500, 300), 35, stop_time=0)
+                    self.tools.draw_text(self.screen, "下载失败", (10, 340), 40, stop_time=0)
+                    break
 
-                if get_time() - low_time > 0.7:
-                    i += 1
-                    low_time = get_time()
+                self.clock.tick(60)
 
                 pygame.event.get()
                 pygame.display.update()
 
-            if res.res != -1:
-                abs_path = abspath(res.res)
+            for err_info, err, error in res.errors:
+                logging.write_log(f"{err_info} 发生错误: {err}")
+                if inform.output_full_log:
+                    logging.write_log(f"{err_info} 发生错误: \"{error}\"", log_type=2)
+
+            if res_code > 0:
+                abs_path = abspath(res.filename)
 
                 self.screen.fill(self.bg_color)
 
                 self.tools.draw_text(self.screen, "下载完成~ {}".format(abs_path), (500, 300), 35, stop_time=1.5)
 
-                run_cmd("start update.exe -f {}".format(abs_path), shell=True)
-
                 self.update = False
+
+                try:
+                    run_cmd("start update.exe -f {}".format(abs_path), shell=True)
+                except Exception as e:
+                    logging.write_log(f"Update.exe 打开失败: {e}")
+                    if inform.output_full_log:
+                        logging.write_log(f"Update.exe 打开失败: \"{traceback.format_exc()}\"", log_type=2)
 
                 exit()
             else:
@@ -330,10 +354,15 @@ class Game:
                 self.bulletin = False
 
     def header_ui(self, skip_head: bool):
+        self.init()
+
+        self.will_update = False
+
         if NETWORK:
             def check_all():
                 res = self.req.update()
                 if res is not None:
+                    self.will_update = True
                     update_url = res[0]
                     latest_version = res[1]
                     self.update_ui(latest_version, update_url)
@@ -342,21 +371,23 @@ class Game:
             update_t.start()
 
         if skip_head is not True:
+
             if NETWORK:
                 def bulletin_ui_thread():
                     self.bulletin_ui()
 
                 t = Thread(target=bulletin_ui_thread, daemon=True)
-                t.start()
             else:
                 t = None
 
-            if NETWORK:
-                update_t.join()
+            t.start()
 
             self.in_head = True
 
             while self.in_head:
+                if self.will_update:
+                    while update_t.is_alive():
+                        pygame.event.get()
 
                 if t is None or not any((self.bulletin, self.update)) or not t.is_alive():
                     self.screen.fill(self.bg_color)
@@ -416,7 +447,7 @@ class Game:
                 res.start()
             else:
                 res = None
-                inform.print_lst[1] = '您的球生成时间与服务端不匹配\n您修改了(config file["sleep_time"])' \
+                inform.print_lst[1] = '您的球生成时间与服务端不匹配\n您修改了 config file["sleep_time"]' \
                                       '\n您可删除 config file 以重新配置'
 
         for i in range(50 if NETWORK else 100):
@@ -553,8 +584,15 @@ class Game:
 
             dt = self.clock.tick(60) / 1000
 
-            self.all_spr.draw(self.display)
-            self.ball_spr.draw(self.display)
+            for i in range(3):
+                try:
+                    self.all_spr.draw(self.display)
+                    self.ball_spr.draw(self.display)
+                    break
+                except Exception as e:
+                    logging.write_log(f"多线程出现的问题 (draw): {e}")
+                    if inform.output_full_log:
+                        logging.write_log(f"多线程出现的问题 (draw): \"{traceback.format_exc()}\"", log_type=2)
 
             if not inform.online:
                 self.tools.draw_text(self.display, "离线模式" + self.tips_info,
@@ -570,9 +608,14 @@ class Game:
             self.tools.draw_text(self.display, f"当前版本：V{VERSION}", (1300, 683), 25, bg_color=None, stop_time=0)
 
             if pygame.display.get_active() and not self.pause:
-                self.all_spr.update(dt, self.screen.get_size())
-                self.ball_spr.update(dt, self.player.pos, self.player.image.get_size(),
-                                     self.display if config["show_locus"] else None)
+                try:
+                    self.all_spr.update(dt, self.screen.get_size())
+                    self.ball_spr.update(dt, self.player.pos, self.player.image.get_size(),
+                                         self.display if config["show_locus"] else None)
+                except Exception as e:
+                    logging.write_log(f"多线程出现的问题 (update): {e}")
+                    if inform.output_full_log:
+                        logging.write_log(f"多线程出现的问题 (update): \"{traceback.format_exc()}\"", log_type=2)
 
             else:
                 self.display.blit(self.black_sur, (0, 0))
