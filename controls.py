@@ -67,7 +67,7 @@ class TextBox(pygame.sprite.Sprite):
 
         self.screen_size = screen_size
         self.pos = pos
-        self.text = text
+        self.__text = text
         self.size = size
         self.alignment_type = alignment_type
         self.functions = functions
@@ -82,26 +82,38 @@ class TextBox(pygame.sprite.Sprite):
         self.font = pygame.font.Font(self.font_file, self.size)
         self.create_surface()
 
+    @property
+    def text(self):
+        return self.__text
+
+    @text.setter
+    def text(self, value: str):
+        self.__text = value
+        self.create_surface()
+
     def create_surface(self):
-        self.abs_size = [self.screen_size[0] - self.pos[0], self.screen_size[1] - self.pos[1]]
+        self.abs_size = [-1, -1]
+
         if self.surface_size[0] is not None:
             self.abs_size[0] = self.surface_size[0]
+        else:
+            self.abs_size[0] = self.screen_size[0] - self.pos[0]
 
         if self.surface_size[1] is not None:
             self.abs_size[1] = self.surface_size[1]
+        else:
+            self.abs_size[1] = self.screen_size[1] - self.pos[1]
 
         self.image = pygame.Surface(self.abs_size).convert_alpha()
         self.image.fill((0, 0, 0, 0))
 
-        self.rect = self.image.get_rect(**{self.alignment_type: self.pos})
-
         i = -1
-        split_texts = self.text.split("\n")  # 自动换行预操作
+        split_texts = self.__text.split("\n")  # 自动换行预操作
         while True:
             text = split_texts[0]  # 取值, 获取每行的文字
             font_surface = self.font.render(text, True, self.color, self.bg_color)  # 生成surface(包含上一次超出的字符)
 
-            if font_surface.get_width() > self.image.get_width():  # 如果字符超过屏幕大小
+            if font_surface.get_width() > self.screen_size[0]:  # 如果字符超过屏幕大小
                 one_width = font_surface.get_width() / len(text)  # 求平均每个字符的大小
                 unexposed_size = len(text) - ceil(
                     (font_surface.get_width() - self.image.get_width()) / one_width)  # 算出没有超出的字符数(向下取整)
@@ -110,12 +122,21 @@ class TextBox(pygame.sprite.Sprite):
             else:
                 split_texts.pop(0)  # 移除避免重复
 
+            image_size = [
+                max(self.image.get_width(), font_surface.get_width() + 10),
+                max(self.image.get_height(), font_surface.get_height() + 10)
+            ]
+
+            # self.image.fill((0, 0, 0, 0))  # Redraw
+
             i += 1  # 行数自加以换行
 
             self.image.blit(font_surface, (0, i * self.font.get_linesize()))  # blit并乘行的index
 
             if len(split_texts) <= 0:  # 循环完退出
                 break
+
+        self.rect = self.image.get_rect(**{self.alignment_type: self.pos})
 
     def event(self):
         mouse_events = pygame.mouse.get_pressed()

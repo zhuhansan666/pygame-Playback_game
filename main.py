@@ -336,7 +336,7 @@ class Game:
                 temp_group = pygame.sprite.Group()
                 TextBox(temp_group, self.screen.get_size(), (10, 100), bulletin_info.replace("<br>", "\n"), 30)
 
-                while self.input_qq:  # 等待qq输入完成
+                while self.input_qq:  # 等待qq输入 和 公告 完成
                     pygame.event.get()
                     sleep(0.1)
 
@@ -387,6 +387,10 @@ class Game:
             while self.in_head:
                 if self.will_update:
                     while update_t.is_alive():
+                        pygame.event.get()
+
+                if self.bulletin:
+                    while self.bulletin:
                         pygame.event.get()
 
                 if t is None or not any((self.bulletin, self.update)) or not t.is_alive():
@@ -590,9 +594,9 @@ class Game:
                     self.ball_spr.draw(self.display)
                     break
                 except Exception as e:
-                    logging.write_log(f"多线程出现的问题 (draw): {e}")
+                    logging.write_log(f"多线程出现的问题 正在尝试第({i + 1})次 (draw): {e}")
                     if inform.output_full_log:
-                        logging.write_log(f"多线程出现的问题 (draw): \"{traceback.format_exc()}\"", log_type=2)
+                        logging.write_log(f"多线程出现的问题 正在尝试第({i + 1})次 (draw): \"{traceback.format_exc()}\"", log_type=2)
 
             if not inform.online:
                 self.tools.draw_text(self.display, "离线模式" + self.tips_info,
